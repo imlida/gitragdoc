@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 func main() {
 	// 定义命令行参数
 	repoURL := flag.String("repo", "", "URL of the Git repository")
-	fileExtensions := flag.String("ext", "md", "File extensions to scan, separated by commas")
+	fileExtensions := flag.String("ext", "md", "File extensions to scan, separated by commas. Use '*' for all text files")
 
 	// 解析命令行参数
 	flag.Parse()
@@ -73,7 +74,12 @@ func main() {
 	}
 
 	// 遍历仓库中的所有指定后缀的文件并合并
-	extensions := strings.Split(*fileExtensions, ",")
+	var extensions []string
+	if *fileExtensions == "*" {
+		extensions = nil // Use nil to indicate all text files
+	} else {
+		extensions = strings.Split(*fileExtensions, ",")
+	}
 	err = mergeFilesWithExtensions(tempDir, outputFile, extensions)
 	if err != nil {
 		fmt.Printf("Failed to merge files: %v\n", err)
@@ -123,20 +129,16 @@ func mergeFilesWithExtensions(dir, outputFile string, extensions []string) error
 			return err
 		}
 		if !info.IsDir() {
-			for _, ext := range extensions {
-				if strings.HasSuffix(info.Name(), "."+ext) {
-					file, err := os.Open(path)
-					if err != nil {
-						return err
+			if extensions == nil {
+				// If extensions is nil, check if it's a text file
+				if isTextFile(path) {
+					return mergeFile(path, &mergedContent)
+				}
+			} else {
+				for _, ext := range extensions {
+					if strings.HasSuffix(info.Name(), "."+ext) {
+						return mergeFile(path, &mergedContent)
 					}
-					defer file.Close()
-
-					_, err = io.Copy(&mergedContent, file)
-					if err != nil {
-						return err
-					}
-					mergedContent.WriteString("\n\n") // 添加分隔符
-					break
 				}
 			}
 		}
@@ -148,4 +150,40 @@ func mergeFilesWithExtensions(dir, outputFile string, extensions []string) error
 	}
 
 	return os.WriteFile(outputFile, []byte(mergedContent.String()), 0644)
+}
+
+// 合并单个文件
+func mergeFile(path string, mergedContent *strings.Builder) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(mergedContent, file)
+	if err != nil {
+		return err
+	}
+	mergedContent.WriteString("\n\n") // 添加分隔符
+	return nil
+}
+
+// 检查文件是否为文本文件
+func isTextFile(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	// 读取文件的前512字节
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return false
+	}
+
+	// 使用http.DetectContentType来检测文件类型
+	contentType := http.DetectContentType(buffer[:n])
+	return strings.HasPrefix(contentType, "text/")
 }

@@ -1,55 +1,73 @@
-# Git 仓库文件合并工具
+# Git仓库文件合并工具
 
-这是一个用 Go 编写的命令行工具，用于从指定的 Git 仓库中克隆或拉取文件，并合并指定后缀的文件到一个单独的文件中。
+## 简介
+
+这是一个用Go语言编写的命令行工具，用于克隆或更新Git仓库，并将仓库中的特定文件类型或所有文本文件合并到一个输出文件中。
 
 ## 功能
 
-- 从指定的 Git 仓库克隆或拉取文件。
-- 合并指定后缀的文件到一个单独的文件中。
-- 支持多个文件后缀，用逗号分隔。
+- 克隆指定的Git仓库
+- 如果仓库已存在，则更新（pull）仓库
+- 合并仓库中的特定文件类型（如.md文件）
+- 支持合并仓库中的所有文本文件
+- 将合并后的内容保存到一个输出文件中
 
 ## 使用方法
 
-### 安装
+### 编译
 
-1. 确保你已经安装了 Go 环境。
-2. 克隆本仓库或下载源码。
-3. 在项目目录下运行 `go build` 生成可执行文件。
+首先，确保你的系统已安装Go语言环境。然后，在项目目录下运行以下命令编译程序：
 
-### 命令行参数
+```bash
+go build -o git-repo-merger main.go
+```
 
-- `-repo`：Git 仓库的 URL，必需参数。
-- `-ext`：要合并的文件后缀，多个后缀用逗号分隔，默认为 `md`。
+### 运行
+
+使用以下命令行参数运行程序：
+
+```bash
+./git-repo-merger -repo <仓库URL> -ext <文件扩展名>
+```
+
+参数说明：
+- `-repo`：Git仓库的URL（必需）
+- `-ext`：要合并的文件扩展名，用逗号分隔。使用 "*" 表示合并所有文本文件（可选，默认为 "md"）
 
 ### 示例
 
-```sh
-./git-merge-tool -repo https://github.com/user/repo.git -ext md,txt
+1. 合并仓库中所有的Markdown文件：
+
+```bash
+./git-repo-merger -repo https://github.com/username/repo.git -ext md
 ```
 
-上述命令将从 `https://github.com/user/repo.git` 克隆或拉取仓库，并合并所有 `.md` 和 `.txt` 文件到一个名为 `merged.md` 的文件中。
+2. 合并仓库中所有的文本文件：
 
-## 代码结构
+```bash
+./git-repo-merger -repo https://github.com/username/repo.git -ext "*"
+```
 
-- `main.go`：主程序入口，处理命令行参数和逻辑流程。
-- `README.md`：本说明文档。
+3. 合并仓库中的Markdown和TXT文件：
 
-## 主要函数
+```bash
+./git-repo-merger -repo https://github.com/username/repo.git -ext md,txt
+```
 
-- `dirExists(dir string) bool`：检查目录是否存在。
-- `getRepoURL(dir string) (string, error)`：获取仓库的 URL。
-- `cloneRepo(repoURL, dir string) error`：克隆 Git 仓库到指定目录。
-- `pullRepo(dir string) error`：执行 `git pull` 操作。
-- `mergeFilesWithExtensions(dir, outputFile string, extensions []string) error`：遍历目录中的所有指定后缀的文件并合并。
+## 输出
 
-## 依赖
+程序将在当前目录下创建以下内容：
 
-- Go 语言标准库
+- `gitrepo` 文件夹：包含克隆或更新的Git仓库
+- `merged.md` 文件：包含所有合并后的文件内容
 
-## 许可证
+## 注意事项
 
-本项目采用 MIT 许可证，详情请参见 [LICENSE](LICENSE) 文件。
+- 确保你有足够的权限来克隆指定的Git仓库
+- 如果指定的仓库已经存在于本地，程序将尝试更新它而不是重新克隆
+- 合并大型仓库或包含大量文件的仓库可能需要一些时间
+- 使用 "*" 作为文件扩展名时，程序将尝试合并所有被检测为文本文件的文件
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。
+欢迎提交问题报告和合并请求来帮助改进这个工具。
