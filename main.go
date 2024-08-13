@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -132,12 +133,12 @@ func mergeFilesWithExtensions(dir, outputFile string, extensions []string) error
 			if extensions == nil {
 				// If extensions is nil, check if it's a text file
 				if isTextFile(path) {
-					return mergeFile(path, &mergedContent)
+					return mergeFile(dir, path, &mergedContent)
 				}
 			} else {
 				for _, ext := range extensions {
 					if strings.HasSuffix(info.Name(), "."+ext) {
-						return mergeFile(path, &mergedContent)
+						return mergeFile(dir, path, &mergedContent)
 					}
 				}
 			}
@@ -149,21 +150,37 @@ func mergeFilesWithExtensions(dir, outputFile string, extensions []string) error
 		return err
 	}
 
-	return os.WriteFile(outputFile, []byte(mergedContent.String()), 0644)
+	return ioutil.WriteFile(outputFile, []byte(mergedContent.String()), 0644)
 }
 
 // 合并单个文件
-func mergeFile(path string, mergedContent *strings.Builder) error {
-	file, err := os.Open(path)
+func mergeFile(baseDir, path string, mergedContent *strings.Builder) error {
+	// 获取相对路径
+	relPath, err := filepath.Rel(baseDir, path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	_, err = io.Copy(mergedContent, file)
+	// 输出相对路径
+	mergedContent.WriteString(fmt.Sprintf("File: %s\n\n", relPath))
+
+	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
+
+	// 判断是否为代码文件
+	if isCodeFile(path) {
+		// 获取文件扩展名作为语言标识
+		ext := filepath.Ext(path)
+		lang := strings.TrimPrefix(ext, ".")
+		mergedContent.WriteString(fmt.Sprintf("```%s\n", lang))
+		mergedContent.Write(content)
+		mergedContent.WriteString("```\n")
+	} else {
+		mergedContent.Write(content)
+	}
+
 	mergedContent.WriteString("\n\n") // 添加分隔符
 	return nil
 }
@@ -186,4 +203,16 @@ func isTextFile(path string) bool {
 	// 使用http.DetectContentType来检测文件类型
 	contentType := http.DetectContentType(buffer[:n])
 	return strings.HasPrefix(contentType, "text/")
+}
+
+// 判断是否为代码文件
+func isCodeFile(path string) bool {
+	codeExtensions := []string{".go", ".java", ".py", ".js", ".c", ".cpp", ".cs", ".php", ".rb", ".swift", ".css", ".json", ".ts"}
+	ext := filepath.Ext(path)
+	for _, codeExt := range codeExtensions {
+		if ext == codeExt {
+			return true
+		}
+	}
+	return false
 }
