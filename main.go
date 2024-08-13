@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -149,7 +149,7 @@ func mergeFilesWithExtensions(dir, outputFile string, extensions []string) error
 		return err
 	}
 
-	return ioutil.WriteFile(outputFile, []byte(mergedContent.String()), 0644)
+	return os.WriteFile(outputFile, []byte(mergedContent.String()), 0644)
 }
 
 // 合并单个文件
@@ -163,7 +163,13 @@ func mergeFile(baseDir, path string, mergedContent *strings.Builder) error {
 	// 输出相对路径
 	mergedContent.WriteString(fmt.Sprintf("File: %s\n\n", relPath))
 
-	content, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return err
 	}
@@ -186,13 +192,20 @@ func mergeFile(baseDir, path string, mergedContent *strings.Builder) error {
 
 // 检查文件是否为文本文件
 func isTextFile(path string) bool {
-	content, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
 	if err != nil {
 		return false
 	}
 
 	// 使用http.DetectContentType来检测文件类型
-	contentType := http.DetectContentType(content)
+	contentType := http.DetectContentType(buffer)
 	return strings.HasPrefix(contentType, "text/")
 }
 
