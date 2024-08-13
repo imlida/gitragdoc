@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -187,21 +186,13 @@ func mergeFile(baseDir, path string, mergedContent *strings.Builder) error {
 
 // 检查文件是否为文本文件
 func isTextFile(path string) bool {
-	file, err := os.Open(path)
+	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	// 读取文件的前512字节
-	buffer := make([]byte, 512)
-	n, err := file.Read(buffer)
-	if err != nil && err != io.EOF {
 		return false
 	}
 
 	// 使用http.DetectContentType来检测文件类型
-	contentType := http.DetectContentType(buffer[:n])
+	contentType := http.DetectContentType(content)
 	return strings.HasPrefix(contentType, "text/")
 }
 
